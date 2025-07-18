@@ -1,0 +1,8 @@
+---
+- name: set poe hat fan trip points on rpi cluster hosts
+  hosts: all
+  become: true
+  gather_facts: true
+   
+  roles:
+    - rpi_poe_hat_conf

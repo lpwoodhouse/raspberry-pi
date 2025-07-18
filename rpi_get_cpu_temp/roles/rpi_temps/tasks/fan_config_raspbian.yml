@@ -1,0 +1,10 @@
+---
+# This task gets poe fan speed levels on distros where poe params are configured in /boot/config.txt
+
+- name: get poe fan level settings
+  shell: cat /boot/config.txt | grep dtparam=poe | awk 'BEGIN { FS =  "="} ; {print $3}'
+  register: speeds
+
+- name: poe fan temp level results
+  debug:
+    msg: "Fan levels: {{speeds.stdout_lines[0]}},{{speeds.stdout_lines[1]}},{{speeds.stdout_lines[2]}},{{speeds.stdout_lines[3]}}"

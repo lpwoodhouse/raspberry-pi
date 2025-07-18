@@ -1,0 +1,3 @@
+---
+# default variables for rpi_get_temps role
+inc_fan_settings: true

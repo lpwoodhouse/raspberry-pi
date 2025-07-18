@@ -1,0 +1,28 @@
+---
+# main tasks for rpi_get_temps role
+- name: get cpu and gpu temps
+  shell:
+    cmd: |
+      cpu=$(cat /sys/class/thermal/thermal_zone0/temp)
+      echo "GPU=$(/opt/vc/bin/vcgencmd measure_temp | awk -F'(=)' '{print $2}')"
+      echo "CPU=$((cpu/1000))'C"
+      echo "$((cpu))"
+  register: temps
+  ignore_errors: true #will continue to run if a node is unreachable
+    
+- name: cpu and gpu temps results
+  debug:
+    msg: "{{temps.stdout_lines[1]}} | {{temps.stdout_lines[0]}}" #alternate cpu var {{temps.stdout_lines[2]|int)/1000)|round|int}}
+
+- name: get poe hat config
+  block:
+
+  - name: get fan settings
+    include_tasks: fan_config_raspbian.yml
+    when: ansible_distribution != "Ubuntu"
+  
+  - name: get fan settings
+    include_tasks: fan_config_ubuntu.yml
+    when: ansible_distribution == "Ubuntu"
+  
+  when: inc_fan_settings|bool

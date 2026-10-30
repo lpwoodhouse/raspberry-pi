@@ -1,32 +1,50 @@
 ---
-- name: create install directory
-  file:
+- name: Require a separately verified SHA-256 checksum
+  ansible.builtin.assert:
+    that:
+      - node_exporter_checksum | default('') is match('^sha256:[a-fA-F0-9]{64}$')
+    fail_msg: Supply node_exporter_checksum from the trusted release checksum for download_url.
+
+- name: Create install directory
+  ansible.builtin.file:
     path: "{{ install_path }}"
     state: directory
+    mode: '0755'
 
-- name: download and unarchive node_exporter
-  unarchive:
-    src: "{{ download_url }}"
+- name: Download and verify archive
+  ansible.builtin.get_url:
+    url: "{{ download_url }}"
+    dest: "{{ install_path }}/node_exporter.tar.gz"
+    checksum: "{{ node_exporter_checksum }}"
+    mode: '0644'
+
+- name: Extract verified exporter
+  ansible.builtin.unarchive:
+    src: "{{ install_path }}/node_exporter.tar.gz"
     dest: "{{ install_path }}"
-    remote_src: yes
-    extra_opts:
-    - --strip-components=1
-  register: unarchive_result
+    remote_src: true
+    extra_opts: [--strip-components=1]
+  notify: Restart node exporter
 
-- name: create systemd service config
-  template:
+- name: Create systemd service
+  ansible.builtin.template:
     src: node_exporter.service.j2
     dest: /etc/systemd/system/node_exporter.service
     owner: root
     group: root
-    mode: 0644
+    mode: '0644'
+  notify: Restart node exporter
 
-- name: start node_exporter.service
-  systemd:
+- name: Apply service changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start node exporter
+  ansible.builtin.systemd:
     name: node_exporter.service
-    enabled: yes
+    daemon_reload: true
+    enabled: true
     state: started
 
-- name: check metrics url
-  uri:
-    url: http://{{ ansible_default_ipv4.address }}:{{ web_port }}/metrics
+- name: Check metrics endpoint
+  ansible.builtin.uri:
+    url: "http://{{ ansible_default_ipv4.address }}:{{ web_port }}/metrics"
